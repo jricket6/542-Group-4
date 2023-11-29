@@ -6,5 +6,11 @@ output: html_document
 ## markdown for gradient boosted models
 
 ```{r}
+library(tidyverse)
 
+salaries <- read.csv("salaries.csv")
+```
+
+```{r}
+head(salaries)
 ```
