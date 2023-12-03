@@ -1,0 +1,78 @@
+---
+title: "NFL 542"
+author: "Shreya Purohit"
+date: "2023-11-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(caret)
+library(ggplot2)
+library(plotly)
+#install.packages("e1071")
+library(e1071)
+#install.packages("caret")
+library(dplyr)
+
+```
+
+decision tree, nnet, kfold cross validation, regression, svm, xgboost
+
+```{r}
+#NFLKaggle <- read.csv("ds_salaries.csv")
+
+SALARY <- read.csv("salaries.csv")
+```
+
+
+
+*SVM* NOT A GOOD IDEA
+```{r}
+
+# train.rows <- sample(1:nrow(SALARY),0.8*nrow(SALARY)) #80% train/20% holdout
+# TRAIN <- SALARY[train.rows,]; HOLDOUT <- SALARY[-train.rows,]
+# 
+# fitControl <- trainControl(method='cv', number=5)
+# svmGrid <- expand.grid(sigma=seq(0.0005,0.0015,0.0001), C=seq(30,150,5))
+
+
+train.rows <- sample(1:nrow(SALARY), 0.8 * nrow(SALARY)) # 80% train/20% holdout
+TRAIN <- SALARY[train.rows,]
+HOLDOUT <- SALARY[-train.rows,]
+
+# Set up the train control
+fitControl <- trainControl(method = 'cv', number = 5)
+
+
+SVM <- train(salary~.,data=SALARY,
+                            method='svmRadial',
+                            trControl=fitControl,
+                            verbose=FALSE,
+                            #tuneGrid = svmGrid,
+                            preProc = c("center", "scale"))
+
+plot(SVM)
+SVM$results[rownames(SVM$bestTune),]
+
+# # Split the data into training and testing sets
+# train_index <- sample(1:nrow(SALARY), 0.8 * nrow(SALARY))
+# train_data <- SALARY[train_index, ]
+# test_data <- SALARY[-train_index, ]
+# 
+# # Train the SVM model
+# svm_model <- svm(salary ~ ., SALARY = train_data, kernel = "radial")
+# 
+# # Make predictions on the test set
+# predictions <- predict(svm_model, test_data)
+# 
+# # Evaluate the model
+# confusion_matrix <- table(predictions, test_data$class)
+# print(confusion_matrix)
+```
+
+
+
