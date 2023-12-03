@@ -1,0 +1,41 @@
+---
+title: "data_cleaning"
+output: pdf_document
+date: "2023-12-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+read data, filter years and company location
+```{r}
+library(tidyverse)
+salary <- read.csv("salaries.csv")
+
+salary <- salary %>%
+  filter(work_year %in% c(2022, 2023), company_location == "US")
+```
+
+adjust 2022 salary for inflation (2022 US inflation rate avg 8%)
+```{r}
+for (i in 1:nrow(salary)) {
+  if (salary$work_year[i] == 2022) {
+    salary$salary_in_usd[i] <- salary$salary_in_usd[i] * 1.08
+  }
+}
+```
+
+removing salary outliers
+```{r}
+Q1 <- quantile(salary$salary_in_usd, 0.25)
+Q3 <- quantile(salary$salary_in_usd, 0.75)
+IQR <- Q3 - Q1
+
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+salary <- salary[salary$salary_in_usd >= lower_bound & salary$salary_in_usd <= upper_bound, ]
+```
+
+
