@@ -50,7 +50,8 @@ salaries <- salaries %>%
          job_title = as.factor(job_title),
          company_location = as.factor(company_location),
          company_size = as.factor(company_size),
-         remote_ratio = as.factor(remote_ratio))
+         remote_ratio = as.factor(remote_ratio),
+         )
 ```
 
 remove outliers before making salary categories
@@ -118,7 +119,7 @@ train_matrix <- xgb.DMatrix(data = as.matrix(train_data), label = train_labels)
 test_matrix <- xgb.DMatrix(data = as.matrix(test_data), label = test_labels)
 ```
 
-first model with default parameters cv to find best number of rounds
+first model with default parameters CV to find best number of rounds
 ```{r}
 #default parameters
 params <- list(booster = "gbtree",
@@ -216,4 +217,134 @@ print(best_params_values)
 print(best_results)
 
 
+```
+
+# note:
+after meeting we made a decision to standardize the data which our models will
+be run on to draw conclusions on model performance, much of what is above will
+be the same
+
+
+read data, filter years and company location
+```{r}
+library(tidyverse)
+library(caret)
+library(xgboost)
+salary <- read.csv("salaries.csv")
+
+salary <- salary %>%
+  filter(work_year %in% c(2022, 2023), company_location == "US")
+```
+
+adjust 2022 salary for inflation (2022 US inflation rate avg 8%)
+```{r}
+for (i in 1:nrow(salary)) {
+  if (salary$work_year[i] == 2022) {
+    salary$salary_in_usd[i] <- salary$salary_in_usd[i] * 1.08
+  }
+}
+
+rm(i)
+```
+
+removing salary outliers
+```{r}
+Q1 <- quantile(salary$salary_in_usd, 0.25)
+Q3 <- quantile(salary$salary_in_usd, 0.75)
+IQR <- Q3 - Q1
+
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+salary <- salary[salary$salary_in_usd >= lower_bound & salary$salary_in_usd <= upper_bound, ]
+
+rm(IQR, lower_bound, Q1, Q3, upper_bound)
+```
+
+cat var as factors, removing unnecessary variables
+```{r}
+salary <- salary %>%
+  select(!(c(salary, salary_currency, company_location)))
+
+salary <- salary %>%
+  mutate(experience_level = as.factor(experience_level),
+         employment_type = as.factor(employment_type),
+         job_title = as.factor(job_title),
+         company_size = as.factor(company_size),
+         employee_residence = as.factor(employee_residence),
+         salary_in_usd = as.integer(salary_in_usd))
+```
+
+one-hot encoding to handle categorical features
+```{r}
+categorical_data <- salary[, c("experience_level", "employment_type", "job_title", "employee_residence",
+                               "company_size")]
+
+dummy_cols <- dummyVars(" ~ .", data = categorical_data)
+
+encoded_data <- predict(dummy_cols, newdata = categorical_data)
+
+clean_salaries <- as.data.frame(cbind(salary[, c("salary_in_usd")], encoded_data))
+
+colnames(clean_salaries)[1] <- "salary"
+
+rm(categorical_data, dummy_cols, encoded_data)
+```
+
+split the data into train and test, remove salary
+```{r}
+set.seed(11)
+
+split <- createDataPartition(clean_salaries$salary, p = 0.7, list = FALSE)
+
+train_data <- clean_salaries[split, ]
+test_data <- clean_salaries[-split, ]
+
+train_labels <- train_data$salary
+test_labels <- test_data$salary
+
+train_data <- train_data[, !(colnames(train_data) %in% c("salary"))]
+test_data <- test_data[, !(colnames(test_data) %in% c("salary"))]
+```
+
+```{r}
+train_matrix <- xgb.DMatrix(data = as.matrix(train_data), label = train_labels)
+test_matrix <- xgb.DMatrix(data = as.matrix(test_data), label = test_labels)
+```
+
+using carets cv to do a grid search
+```{r}
+ctrl <- trainControl(method = "cv", number = 5, allowParallel = TRUE)
+
+# convert training and test sets to xgb.DMatrix
+train_dmatrix <- xgboost::xgb.DMatrix(data = as.matrix(train_data), label = train_labels)
+test_dmatrix <- xgboost::xgb.DMatrix(data = as.matrix(test_data), label = test_labels)
+
+# Define a watchlist with xgb.DMatrix elements
+watchlist <- list(train = train_dmatrix, test = test_dmatrix)
+
+model <- train(x = as.matrix(train_data),
+               y = train_labels,
+               method = "xgbTree",
+               trControl = ctrl,
+               tuneGrid = expand.grid(nrounds = c(50, 100, 150),
+                                       max_depth = c(3, 6, 9),
+                                       eta = c(0.1, 0.3, 0.5),
+                                       gamma = c(0, 1, 2),
+                                       colsample_bytree = c(0.6, 0.8, 1),
+                                       min_child_weight = c(1, 3, 5),
+                                       subsample = c(0.8, 1)),
+               metric = "RMSE",  # Evaluate based on RMSE
+               tuneLength = 3,  # Number of combinations to search
+               early_stopping_rounds = 10,
+               verbose = 2,
+               watchlist = watchlist)  # Enable early stopping
+
+model$bestTune
+
+predictions <- predict(model, newdata = as.matrix(test_data))
+
+# Calculate RMSE
+rmse <- sqrt(mean((test_labels - predictions)^2))
+cat("RMSE:", rmse, "\n")
 ```
