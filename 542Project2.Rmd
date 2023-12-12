@@ -1,0 +1,148 @@
+---
+title: "542 Project 2"
+author: "Tomas Rodriguez Marengo"
+date: "2023-11-29"
+output: word_document
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(stringr)
+
+salaries <- read.csv("salaries.csv")
+```
+
+
+```{r}
+
+salaries$experience_level <- as.factor(salaries$experience_level)
+salaries$employment_type <- as.factor(salaries$employment_type)
+salaries$job_title <- as.factor(salaries$job_title)
+salaries$employee_residence <- as.factor(salaries$employee_residence)
+salaries$company_location <- as.factor(salaries$company_location)
+salaries$company_size <- as.factor(salaries$company_size)
+
+salaries_usd <- salaries %>%
+  filter(salary_currency == "USD",
+         employee_residence == "US",
+         company_location == "US")
+
+
+```
+
+```{r}
+
+model_salary_updated <- lm(salary_in_usd ~ experience_level + job_title + company_size + remote_ratio, data = salaries_usd)
+
+summary(model_salary_updated)
+
+# Get predicted values
+predicted_values <- predict(model_salary_updated, newdata = salaries_usd)
+
+# Calculate residuals
+residuals <- salaries_usd$salary_in_usd - predicted_values
+
+# Calculate RMSE
+rmse <- sqrt(mean(residuals^2))
+
+rmse
+
+```
+
+```{r}
+
+coefficients_df <- as.data.frame(coef(summary(model_salary_updated)))
+coefficients_df$job_title <- rownames(coefficients_df)
+
+job_title_coeffs <- subset(coefficients_df, grepl("job_title", job_title))
+
+job_title_coeffs$precision <- 1 / job_title_coeffs$`Std. Error`
+
+top_10_job_titles <- head(job_title_coeffs[order(-job_title_coeffs$precision), ], 10)
+
+top_10_job_titles
+
+
+```
+
+```{r}
+
+top_10_job_titles$CI_lower <- top_10_job_titles$Estimate - 1.96 * top_10_job_titles$`Std. Error`
+top_10_job_titles$CI_upper <- top_10_job_titles$Estimate + 1.96 * top_10_job_titles$`Std. Error`
+
+ggplot(top_10_job_titles, aes(x = job_title, y = Estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = CI_lower, ymax = CI_upper), width = 0.2) +
+  theme_minimal() +
+  labs(title = "Estimated Salary Impact by Job Title",
+       x = "Job Title",
+       y = "Estimated Salary Impact") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+
+
+```
+
+
+```{r}
+
+ggplot(top_10_job_titles, aes(x = reorder(job_title, Estimate), y = Estimate)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Impact of Job Titles on Salary", x = "Job Title", y = "Salary Impact (USD)") +
+  theme_minimal()
+
+ggplot(top_10_job_titles, aes(x = reorder(job_title, Estimate), y = Estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = CI_lower, ymax = CI_upper), width = 0.2) +
+  coord_flip() +
+  labs(title = "Confidence Intervals for Salary Impact by Job Title", x = "Job Title", y = "Salary Impact (USD)") +
+  theme_minimal()
+
+ggplot(top_10_job_titles, aes(x = reorder(job_title, precision), y = precision)) +
+  geom_col(fill = "darkgreen") +
+  coord_flip() +
+  labs(title = "Precision of Salary Estimates by Job Title", x = "Job Title", y = "Precision") +
+  theme_minimal()
+
+
+```
+
+
+```{r}
+top_job_titles <- gsub("job_title", "", top_10_job_titles$job_title) 
+
+filtered_data <- salaries_usd[salaries_usd$job_title %in% top_job_titles, ]
+
+if (nrow(filtered_data) > 0) {
+  mean_salaries <- aggregate(salary_in_usd ~ job_title, data = filtered_data, FUN = mean)
+
+  print(mean_salaries)
+} else {
+  print("No matching job titles found in the dataset.")
+}
+
+ggplot(mean_salaries, aes(x = reorder(job_title, salary_in_usd), y = salary_in_usd, fill = job_title)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(title = "Mean Salary by Job Title", x = "Job Title", y = "Mean Salary (USD)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+ggplot(mean_salaries, aes(x = salary_in_usd, y = reorder(job_title, salary_in_usd))) +
+  geom_point(color = "blue") +
+  theme_minimal() +
+  labs(title = "Mean Salary by Job Title", x = "Mean Salary (USD)", y = "Job Title")
+
+
+
+```
+  
+
+
+
+
+
+
+```
+
