@@ -1,5 +1,7 @@
 # 542-Group-4
 
+Please use this as a guide to find what you are looking for. Click the link and it will take you to the appropriate file, there is also a brief description of what each link contains.
+
 - **[Cleaning Process:](/data_cleaning.Rmd)** This is how we cleaned the data for use in all modeling
 
 - **[Shiny App Presented in Class Before Updates:](/model_clust.R)** This was original Shiny App with just the Cluster Model
