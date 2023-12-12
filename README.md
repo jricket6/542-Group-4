@@ -15,3 +15,5 @@ Please use this as a guide to find what you are looking for. Click the link and 
 - **[Boosted Model:](/gbmodels.Rmd)** Here is our gradient boost model
 
 - **[Linear Model:](/542Project2.Rmd)** Here is our linear model
+
+- **[Decision Tree Model:](/DataMiningProject.Rmd)** Here is our decision tree model
