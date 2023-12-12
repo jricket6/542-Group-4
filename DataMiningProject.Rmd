@@ -1,0 +1,84 @@
+---
+title: "Data Mining"
+author: "Karan Patel"
+date: "2023-11-29"
+output: html_document
+---
+
+
+```{r}
+library(dplyr)
+library(caret)
+library(rpart)
+library(rpart.plot)
+
+```
+
+
+
+```{r}
+Salary <- read.csv("salaries.csv")
+# Set seed for reproducibility
+set.seed(123)
+
+Q1 <- quantile(Salary$salary_in_usd, 0.25)
+Q3 <- quantile(Salary$salary_in_usd, 0.75)
+IQR <- Q3 - Q1
+
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+
+Salary <- Salary[Salary$salary_in_usd >= lower_bound & Salary$salary_in_usd <= upper_bound, ]
+
+Salary <- subset(Salary, work_year %in% c(2023, 2022))
+
+
+
+# Sample indices for training set
+train_indices <- sample(1:nrow(Salary), 0.8 * nrow(Salary))
+
+# Create training and testing datasets
+train_data <- Salary[train_indices, ]
+test_data <- Salary[-train_indices, ]
+
+# Convert factor variables to factors with consistent levels
+factor_vars <- c("experience_level", "job_title", "salary_currency", "employee_residence", "company_size", "company_location", "employment_type")
+for (var in factor_vars) {
+  train_data[[var]] <- as.factor(train_data[[var]])
+  test_data[[var]] <- as.factor(test_data[[var]])
+}
+
+# Ensure factor levels in newdata match the training data
+for (var in factor_vars) {
+  test_data[[var]] <- factor(test_data[[var]], levels = levels(train_data[[var]]))
+}
+
+# Build the model
+tree_model <- rpart(salary_in_usd ~ work_year + experience_level + employment_type + job_title + employee_residence + remote_ratio + company_location + company_size, data = train_data)
+
+
+# plot(tree_model)
+# text(tree_model, digits=1)
+# rpart.plot(tree_model, extra = 1)
+
+# Make predictions
+predictions <- predict(tree_model, newdata = test_data)
+
+# Extract actual salary values
+actual_salary <- test_data$salary_in_usd
+
+# Check for missing values
+sum(is.na(actual_salary))
+sum(is.na(predictions))
+
+# Remove missing values
+complete_cases <- complete.cases(actual_salary, predictions)
+actual_salary <- actual_salary[complete_cases]
+predictions <- predictions[complete_cases]
+
+# Calculate RMSE
+rmse <- sqrt(mean((predictions - actual_salary)^2))
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+
+```
+
