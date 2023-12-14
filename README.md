@@ -4,6 +4,8 @@ Please use this as a guide to find what you are looking for. Click the link and 
 
 - **[Our Presentation:](/542-group-4.pptx)** This is our presentation from the final class period
 
+- **[Data Dictionary:](/salaries_dictionary.png)** Here is a picture of what our data contains
+
 - **[Cleaning Process:](/data_cleaning.Rmd)** This is how we cleaned the data for use in all modeling
 
 - **[Shiny App Presented in Class Before Updates:](/model_clust.R)** This was original Shiny App with just the Cluster Model
